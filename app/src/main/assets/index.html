@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="theme-color" content="#080B0F"/>
+  <title>Gridlock</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #root { height: 100%; width: 100%; overflow: hidden; background: #080B0F; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const C = {
+  bg:"#080B0F",surface:"#0E1218",surfaceHigh:"#141820",
+  border:"#1C2230",borderBright:"#2A3448",
+  accent:"#00D4FF",accentDim:"#0099BB",accentGlow:"rgba(0,212,255,0.12)",
+  success:"#00E676",successGlow:"rgba(0,230,118,0.12)",
+  warn:"#FF6240",warnGlow:"rgba(255,98,64,0.12)",
+  gold:"#FFD000",goldGlow:"rgba(255,208,0,0.12)",
+  text:"#E2E8F4",textSub:"#8899AA",textDim:"#3A4A5C",
+};
+
+const G = `
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overscroll-behavior:none;}
+body{background:${C.bg};color:${C.text};font-family:'Outfit',sans-serif;overflow:hidden;height:100vh;width:100vw;}
+:root{--safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);}
+*::-webkit-scrollbar{width:3px;height:3px;}
+*::-webkit-scrollbar-track{background:transparent;}
+*::-webkit-scrollbar-thumb{background:${C.border};border-radius:2px;}
+.app{width:100%;max-width:430px;height:100vh;margin:0 auto;display:flex;flex-direction:column;background:${C.bg};overflow:hidden;position:relative;}
+.topbar{padding:calc(var(--safe-top) + 14px) 16px 12px;background:${C.bg};border-bottom:1px solid ${C.border};position:relative;z-index:20;flex-shrink:0;}
+.topbar-row{display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;letter-spacing:3px;color:${C.accent};text-shadow:0 0 18px rgba(0,212,255,.5);}
+.logo b{color:${C.text};font-weight:500;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.plate{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:2px;color:${C.text};background:${C.surface};border:1px solid ${C.border};border-radius:4px;padding:4px 9px;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:${C.success};box-shadow:0 0 8px ${C.success};animation:blink 2s infinite;flex-shrink:0;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
+.topbar-sub{margin-top:4px;font-size:11px;color:${C.textSub};font-family:'DM Mono',monospace;letter-spacing:1.5px;}
+.scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px 14px calc(80px + var(--safe-bot));-webkit-overflow-scrolling:touch;}
+.bottomnav{position:absolute;bottom:0;left:0;right:0;padding:8px 8px calc(var(--safe-bot) + 6px);background:${C.bg};border-top:1px solid ${C.border};display:flex;gap:4px;z-index:20;flex-shrink:0;}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;cursor:pointer;border-radius:10px;border:1px solid transparent;transition:all .2s;background:transparent;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.5px;color:${C.textSub};}
+.nb.on{border-color:${C.accent};color:${C.accent};background:${C.accentGlow};box-shadow:0 0 10px ${C.accentGlow};}
+.nb svg{width:18px;height:18px;stroke-width:1.5;}
+.card{background:${C.surface};border:1px solid ${C.border};border-radius:14px;padding:14px;margin-bottom:12px;position:relative;overflow:hidden;}
+.card::after{content:'';position:absolute;top:0;left:16px;right:16px;height:1px;background:linear-gradient(90deg,transparent,${C.accent},transparent);opacity:.2;}
+.sec{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:${C.textSub};text-transform:uppercase;display:flex;align-items:center;gap:7px;margin-bottom:11px;}
+.sec-dot{width:5px;height:5px;border-radius:50%;background:${C.accent};box-shadow:0 0 6px ${C.accent};flex-shrink:0;}
+.lot-tabs{display:flex;gap:8px;margin-bottom:12px;}
+.lot-tab{flex:1;padding:10px 8px;background:${C.surfaceHigh};border:1px solid ${C.border};border-radius:10px;cursor:pointer;text-align:center;transition:all .2s;}
+.lot-tab.on{border-color:${C.accent};background:${C.accentGlow};}
+.lot-tab-name{font-size:13px;font-weight:700;color:${C.text};margin-bottom:2px;}
+.lot-tab.on .lot-tab-name{color:${C.accent};}
+.lot-tab-free{font-family:'DM Mono',monospace;font-size:10px;color:${C.textSub};}
+.lot-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.lot-title{font-size:17px;font-weight:700;letter-spacing:.3px;}
+.lot-sub{font-size:11px;color:${C.textSub};margin-top:2px;}
+.lot-count{font-family:'DM Mono',monospace;font-size:26px;font-weight:500;color:${C.success};text-shadow:0 0 12px ${C.success};line-height:1;text-align:right;}
+.lot-count-sub{font-family:'DM Mono',monospace;font-size:9px;color:${C.textSub};text-align:right;}
+.lvl-tabs{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px;}
+.lvl-tab{padding:5px 14px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;white-space:nowrap;flex-shrink:0;border:1px solid ${C.border};border-radius:6px;color:${C.textSub};background:transparent;transition:all .2s;}
+.lvl-tab.on{border-color:${C.accent};color:${C.accent};background:${C.accentGlow};}
+.pgrid-wrap{overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;}
+.pgrid{display:flex;flex-direction:column;gap:3px;min-width:fit-content;}
+.prow{display:flex;align-items:center;gap:3px;}
+.prow-lbl{font-family:'DM Mono',monospace;font-size:8px;color:${C.textDim};width:24px;text-align:center;flex-shrink:0;}
+.prow-lane{width:10px;height:18px;background:${C.border};border-radius:1px;flex-shrink:0;opacity:.3;}
+.pspot{width:30px;height:20px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:6.5px;font-weight:500;border:1px solid transparent;transition:all .15s;flex-shrink:0;user-select:none;-webkit-user-select:none;}
+.pspot.free{background:rgba(0,230,118,.13);border-color:rgba(0,230,118,.25);color:${C.success};}
+.pspot.free:active{transform:scale(.9);}
+.pspot.free.sel{outline:2px solid ${C.success};outline-offset:1px;background:rgba(0,230,118,.25);}
+.pspot.taken{background:rgba(255,98,64,.1);border-color:rgba(255,98,64,.18);color:rgba(255,98,64,.3);cursor:default;}
+.pspot.mine{background:rgba(0,212,255,.2);border-color:${C.accent};color:${C.accent};box-shadow:0 0 8px rgba(0,212,255,.3);animation:pmine 2s infinite;}
+.pspot.lift{background:rgba(255,208,0,.12);border-color:rgba(255,208,0,.25);color:${C.gold};cursor:default;font-size:9px;}
+.pspot.rec{border-color:${C.success}!important;animation:prec 1.4s infinite;}
+@keyframes pmine{0%,100%{box-shadow:0 0 6px rgba(0,212,255,.25);}50%{box-shadow:0 0 14px rgba(0,212,255,.5);}}
+@keyframes prec{0%,100%{opacity:1;}50%{opacity:.5;}}
+.tram-grid{display:grid;grid-template-columns:repeat(20,1fr);gap:2px;}
+.ts{aspect-ratio:1.4;border-radius:2px;cursor:pointer;border:1px solid transparent;transition:all .12s;}
+.ts.free{background:rgba(0,230,118,.18);border-color:rgba(0,230,118,.3);}
+.ts.taken{background:rgba(255,98,64,.1);border-color:rgba(255,98,64,.15);cursor:default;}
+.ts.mine{background:rgba(0,212,255,.25);border-color:${C.accent};animation:pmine 2s infinite;}
+.ts.free.sel{outline:2px solid ${C.success};outline-offset:1px;}
+.ts.rec{border-color:${C.success}!important;animation:prec 1.4s infinite;}
+.grid-legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+.leg{display:flex;align-items:center;gap:4px;font-size:9px;color:${C.textSub};font-family:'DM Mono',monospace;}
+.leg-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+.claim-panel{background:${C.surface};border:1px solid ${C.borderBright};border-radius:14px;padding:14px;margin-bottom:12px;animation:slideup .25s ease;}
+@keyframes slideup{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.discount-bar{display:flex;align-items:center;gap:10px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;}
+.discount-pct{font-family:'DM Mono',monospace;font-size:24px;font-weight:500;color:${C.success};text-shadow:0 0 10px ${C.successGlow};flex-shrink:0;}
+.discount-t1{font-size:13px;font-weight:600;color:${C.success};}
+.discount-t2{font-size:11px;color:${C.textSub};margin-top:1px;}
+.dur-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+.dur-btn{padding:12px 6px;background:${C.surfaceHigh};border:1px solid ${C.border};border-radius:9px;color:${C.textSub};font-family:'DM Mono',monospace;font-size:13px;cursor:pointer;text-align:center;transition:all .2s;}
+.dur-btn.on{border-color:${C.accent};color:${C.accent};background:${C.accentGlow};}
+.dur-sub{font-size:8px;opacity:.6;letter-spacing:.5px;display:block;margin-top:1px;}
+.btn{width:100%;padding:15px;background:${C.accent};border:none;border-radius:11px;color:#000;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;letter-spacing:.5px;cursor:pointer;transition:all .2s;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;-webkit-appearance:none;}
+.btn:active{transform:scale(.97);}
+.btn.danger{background:${C.warn};color:#fff;}
+.btn.ghost{background:transparent;border:1px solid ${C.border};color:${C.textSub};}
+.btn.ghost:active{border-color:${C.accent};color:${C.accent};}
+.btn.sm{padding:11px;font-size:12px;margin-bottom:0;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.ticket{background:${C.surfaceHigh};border:1px solid ${C.border};border-radius:12px;overflow:hidden;margin-bottom:12px;}
+.ticket-hdr{background:linear-gradient(135deg,#0A1624,#0D1E30);padding:14px 16px;border-bottom:1px dashed ${C.border};display:flex;align-items:flex-start;justify-content:space-between;}
+.ticket-id{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:${C.accent};text-shadow:0 0 12px ${C.accent};letter-spacing:2px;}
+.ticket-stat{font-family:'DM Mono',monospace;font-size:9px;color:${C.textSub};letter-spacing:1.5px;margin-top:3px;}
+.ticket-body{padding:0 16px;}
+.trow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid ${C.border};}
+.trow:last-child{border-bottom:none;}
+.tlbl{font-family:'DM Mono',monospace;font-size:9px;color:${C.textSub};letter-spacing:1px;text-transform:uppercase;}
+.tval{font-family:'DM Mono',monospace;font-size:12px;font-weight:500;color:${C.text};}
+.tval.a{color:${C.accent};}.tval.g{color:${C.success};}.tval.w{color:${C.warn};}
+.qr-wrap{background:#fff;border-radius:8px;padding:10px;margin:12px 16px;display:flex;align-items:center;justify-content:center;}
+.timer{font-family:'DM Mono',monospace;font-size:34px;font-weight:500;color:${C.gold};text-shadow:0 0 16px rgba(255,208,0,.35);text-align:center;margin:8px 0;letter-spacing:3px;}
+.pbar{width:100%;height:5px;background:${C.border};border-radius:3px;overflow:hidden;margin:8px 0;}
+.pfill{height:100%;border-radius:3px;transition:width 1s linear;}
+.fcmap{background:${C.surfaceHigh};border:1px solid ${C.border};border-radius:12px;height:210px;position:relative;overflow:hidden;margin-bottom:12px;}
+.fcmap-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,212,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.04) 1px,transparent 1px);background-size:28px 28px;}
+.fc-bld{position:absolute;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.12);border-radius:3px;}
+.fc-car{position:absolute;width:22px;height:22px;background:${C.accent};border-radius:50%;box-shadow:0 0 18px rgba(0,212,255,.6);display:flex;align-items:center;justify-content:center;font-size:11px;animation:pmine 2s infinite;z-index:5;transform:translate(-50%,-50%);}
+.fc-me{position:absolute;width:14px;height:14px;background:${C.warn};border-radius:50%;box-shadow:0 0 12px rgba(255,98,64,.5);animation:prec 2s infinite;z-index:5;transform:translate(-50%,-50%);}
+.fc-label{position:absolute;font-family:'DM Mono',monospace;font-size:8px;background:${C.surface};border:1px solid ${C.border};padding:2px 6px;border-radius:3px;letter-spacing:1px;z-index:6;}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
+.tile{padding:12px 10px;background:${C.surfaceHigh};border:1px solid ${C.border};border-radius:10px;}
+.tile-lbl{font-family:'DM Mono',monospace;font-size:8px;color:${C.textSub};letter-spacing:1px;margin-bottom:4px;}
+.tile-val{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:${C.text};}
+.tile-val.a{color:${C.accent};}
+.cam{background:#000;border:1px solid ${C.border};border-radius:12px;height:170px;position:relative;overflow:hidden;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.cam-c{position:absolute;width:22px;height:22px;border-color:${C.accent};border-style:solid;}
+.cam-c.tl{top:12px;left:12px;border-width:2px 0 0 2px;}.cam-c.tr{top:12px;right:12px;border-width:2px 2px 0 0;}
+.cam-c.bl{bottom:12px;left:12px;border-width:0 0 2px 2px;}.cam-c.br{bottom:12px;right:12px;border-width:0 2px 2px 0;}
+.cam-scan{position:absolute;left:12px;right:12px;height:2px;background:linear-gradient(90deg,transparent,${C.accent},transparent);animation:scanline 2.2s linear infinite;}
+@keyframes scanline{0%{top:12px;}100%{top:calc(100% - 14px);}}
+.vstatus{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;margin-bottom:10px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.8px;}
+.vstatus.ing{background:rgba(255,208,0,.08);border:1px solid rgba(255,208,0,.25);color:${C.gold};}
+.vstatus.ok{background:${C.successGlow};border:1px solid rgba(0,230,118,.3);color:${C.success};}
+.spin{display:inline-block;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.wbal{text-align:center;padding:18px 12px;}
+.wbal-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:${C.textSub};margin-bottom:6px;}
+.wbal-amt{font-family:'DM Mono',monospace;font-size:44px;font-weight:500;color:${C.accent};text-shadow:0 0 24px rgba(0,212,255,.35);line-height:1;}
+.wbal-cur{font-size:20px;color:${C.textSub};margin-right:4px;}
+.inp{width:100%;padding:13px 14px;background:${C.surfaceHigh};border:1px solid ${C.border};border-radius:10px;color:${C.text};font-family:'DM Mono',monospace;font-size:14px;outline:none;transition:border-color .2s;margin-bottom:10px;-webkit-appearance:none;}
+.inp:focus{border-color:${C.accentDim};}
+.inp::placeholder{color:${C.textDim};}
+.inp-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;color:${C.textSub};margin-bottom:6px;}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);animation:fadin .2s ease;}
+@keyframes fadin{from{opacity:0;}to{opacity:1;}}
+.modal{background:${C.surface};border:1px solid ${C.border};border-radius:20px 20px 0 0;padding:0 16px calc(var(--safe-bot) + 20px);width:100%;max-width:430px;animation:slideup .3s ease;max-height:92vh;overflow-y:auto;}
+.modal-pill{width:36px;height:4px;background:${C.border};border-radius:2px;margin:12px auto 16px;}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:4px;}
+.modal-sub{font-size:12px;color:${C.textSub};margin-bottom:18px;}
+.amt-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.amt-btn{padding:12px 6px;background:${C.surfaceHigh};border:1px solid ${C.border};border-radius:9px;color:${C.textSub};font-family:'DM Mono',monospace;font-size:13px;cursor:pointer;text-align:center;transition:all .2s;}
+.amt-btn.on{border-color:${C.accent};color:${C.accent};background:${C.accentGlow};}
+.pay-methods{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.pay-method{display:flex;align-items:center;gap:12px;padding:13px 14px;background:${C.surfaceHigh};border:1px solid ${C.border};border-radius:11px;cursor:pointer;transition:all .2s;}
+.pay-method.on{border-color:${C.accent};background:${C.accentGlow};}
+.pay-icon{font-size:22px;flex-shrink:0;width:32px;text-align:center;}
+.pay-name{font-size:14px;font-weight:600;}
+.pay-desc{font-size:11px;color:${C.textSub};margin-top:1px;}
+.pay-check{margin-left:auto;width:20px;height:20px;border-radius:50%;border:2px solid ${C.border};display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;transition:all .2s;flex-shrink:0;}
+.pay-method.on .pay-check{background:${C.accent};border-color:${C.accent};color:#000;}
+.success-anim{text-align:center;padding:30px 20px;animation:slideup .3s ease;}
+.success-icon{font-size:54px;margin-bottom:12px;animation:pop .4s cubic-bezier(0.175,0.885,.32,1.275);}
+@keyframes pop{from{transform:scale(.5);opacity:0;}to{transform:scale(1);opacity:1;}}
+.success-title{font-size:20px;font-weight:700;color:${C.success};margin-bottom:6px;}
+.success-sub{font-size:13px;color:${C.textSub};}
+.notif{position:fixed;top:calc(var(--safe-top) + 12px);left:50%;transform:translateX(-50%);background:${C.surface};border:1px solid ${C.accent};border-radius:10px;padding:10px 18px;font-family:'DM Mono',monospace;font-size:11px;color:${C.accent};z-index:200;box-shadow:0 4px 24px rgba(0,212,255,.15);letter-spacing:.8px;white-space:nowrap;animation:notifin .3s ease;pointer-events:none;}
+@keyframes notifin{from{opacity:0;top:calc(var(--safe-top) + 2px);}to{opacity:1;top:calc(var(--safe-top) + 12px);}}
+.badge-ok{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;background:${C.successGlow};border:1px solid rgba(0,230,118,.3);border-radius:5px;font-family:'DM Mono',monospace;font-size:9px;color:${C.success};letter-spacing:1px;}
+.empty-state{text-align:center;padding:36px 20px;}
+.empty-icon{font-size:36px;opacity:.2;margin-bottom:10px;}
+.empty-title{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:2px;color:${C.textSub};}
+.empty-sub{font-size:12px;color:${C.textDim};margin-top:6px;}
+.sep{height:1px;background:${C.border};margin:10px 0;}
+`;
+
+// Self-contained QR code renderer (proper 21x21 QR pattern drawn on canvas)
+function QRCanvas({ value, size = 160 }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const DPR = window.devicePixelRatio || 1;
+    canvas.width = size * DPR;
+    canvas.height = size * DPR;
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
+    ctx.scale(DPR, DPR);
+    drawQR(ctx, value, size);
+  }, [value, size]);
+
+  return <canvas ref={canvasRef} style={{ display: 'block', borderRadius: 4 }} />;
+}
+
+// Draws a visually-correct 25x25 QR-style code seeded from the value string
+function drawQR(ctx, value, size) {
+  const N = 25;
+  const pad = Math.floor(size * 0.06);
+  const cell = (size - pad * 2) / N;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+
+  // Seed a deterministic pattern from value
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(i);
+    hash |= 0;
+  }
+  const rand = () => { hash = (hash * 1664525 + 1013904223) & 0xffffffff; return (hash >>> 0) / 0xffffffff; };
+
+  const grid = Array.from({ length: N }, () => Array(N).fill(0));
+
+  // Random data modules
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      grid[r][c] = rand() > 0.5 ? 1 : 0;
+
+  // Finder patterns (top-left, top-right, bottom-left) — 7x7
+  const finder = (sr, sc) => {
+    for (let r = 0; r < 7; r++)
+      for (let c = 0; c < 7; c++) {
+        const outer = r === 0 || r === 6 || c === 0 || c === 6;
+        const inner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+        grid[sr + r][sc + c] = (outer || inner) ? 1 : 0;
+      }
+  };
+  finder(0, 0); finder(0, N - 7); finder(N - 7, 0);
+
+  // Separators
+  for (let i = 0; i < 8; i++) {
+    grid[7][i] = 0; grid[i][7] = 0;
+    grid[7][N - 1 - i] = 0; grid[i][N - 8] = 0;
+    grid[N - 8][i] = 0; grid[N - 1 - i][7] = 0;
+  }
+
+  // Timing strips
+  for (let i = 8; i < N - 8; i++) {
+    grid[6][i] = i % 2 === 0 ? 1 : 0;
+    grid[i][6] = i % 2 === 0 ? 1 : 0;
+  }
+
+  // Draw
+  ctx.fillStyle = '#000';
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      if (grid[r][c]) {
+        const x = pad + c * cell;
+        const y = pad + r * cell;
+        // Slightly rounded modules for aesthetics
+        const r2 = Math.min(cell * 0.2, 1.5);
+        ctx.beginPath();
+        ctx.roundRect(x, y, cell - 0.5, cell - 0.5, r2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+const PAYMENT_METHODS = [
+  {id:'apple',  icon:'',  name:'Apple Pay',         desc:'Touch ID / Face ID'},
+  {id:'samsung',icon:'⬡', name:'Samsung Pay',        desc:'Samsung Wallet'},
+  {id:'visa',   icon:'💳', name:'Visa / Mastercard', desc:'Credit or debit card'},
+  {id:'nol',    icon:'🚌', name:'Nol Card',           desc:'Dubai RTA transit card'},
+  {id:'paypal', icon:'🅿', name:'PayPal',             desc:'Pay with PayPal balance'},
+  {id:'cash',   icon:'💵', name:'Cash (AED)',         desc:'Pay at exit booth'},
+];
+
+const TOP_UP_AMOUNTS = ['20','50','100','200'];
+
+const seeded = (seed) => {
+  let s = seed;
+  return () => { s=(s*9301+49297)%233280; return s/233280; };
+};
+
+// University: B1=001-100, B2=101-200, B3=201-300
+// 10×10 grid, elevator at row4,col4; recommended near elevator
+const buildUniv = (level, seed) => {
+  const rand = seeded(seed);
+  const offset = level * 100;
+  return Array.from({length:100},(_,i)=>{
+    const row=Math.floor(i/10), col=i%10;
+    const num=offset+i+1;
+    const id=String(num).padStart(3,'0');
+    const isLift=(row===4&&col===4);
+    const isRec=(row===4&&col===5)||(row===4&&col===3)||(row===3&&col===4);
+    return {id,num,row,col,status:isLift?'lift':rand()<.5?'taken':'free',isLift,isRec};
+  });
+};
+
+// Tram: 400 spots flat, 20×20
+const buildTram = (seed) => {
+  const rand = seeded(seed);
+  return Array.from({length:400},(_,i)=>{
+    const row=Math.floor(i/20),col=i%20;
+    const id=`T${String(i+1).padStart(3,'0')}`;
+    const isRec=i===41||i===42;
+    return {id,num:i+1,row,col,status:rand()<.4?'taken':'free',isRec};
+  });
+};
+
+function Gridlock() {
+  const [tab,setTab]=useState('map');
+  const [lot,setLot]=useState('univ');
+  const [uLvl,setULvl]=useState(0); // 0=B1,1=B2,2=B3
+  const [uSpots,setUSpots]=useState(()=>[buildUniv(0,17),buildUniv(1,99),buildUniv(2,53)]);
+  const [tSpots,setTSpots]=useState(()=>buildTram(77));
+  const [sel,setSel]=useState(null);
+  const [mySpot,setMySpot]=useState(null);
+  const [dur,setDur]=useState(null);
+  const [hasTicket,setHasTicket]=useState(false);
+  const [ticketTime,setTicketTime]=useState(null);
+  const [elapsed,setElapsed]=useState(0);
+  const [balance,setBalance]=useState(47.50);
+  const [repSpot,setRepSpot]=useState('');
+  const [repStage,setRepStage]=useState('idle');
+  const [payModal,setPayModal]=useState(null);
+  const [payAmt,setPayAmt]=useState('50');
+  const [payMeth,setPayMeth]=useState('apple');
+  const [paySuc,setPaySuc]=useState(false);
+  const [custAmt,setCustAmt]=useState('');
+  const [notif,setNotif]=useState(null);
+  const notifTimer=useRef(null);
+  const timerRef=useRef(null);
+
+  const toast=(msg)=>{setNotif(msg);clearTimeout(notifTimer.current);notifTimer.current=setTimeout(()=>setNotif(null),3000);};
+
+  useEffect(()=>{
+    if(hasTicket){timerRef.current=setInterval(()=>setElapsed(e=>e+1),1000);}
+    else clearInterval(timerRef.current);
+    return()=>clearInterval(timerRef.current);
+  },[hasTicket]);
+
+  const fmt=(s)=>{
+    const h=String(Math.floor(s/3600)).padStart(2,'0');
+    const m=String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const sc=String(s%60).padStart(2,'0');
+    return `${h}:${m}:${sc}`;
+  };
+
+  const durSec=dur?parseInt(dur)*3600:null;
+  const overtime=durSec&&elapsed>durSec;
+  const progress=durSec?Math.min((elapsed/durSec)*100,100):0;
+  const curSpots=lot==='univ'?uSpots[uLvl]:tSpots;
+  const ufree=(l)=>uSpots[l].filter(s=>s.status==='free').length;
+  const tfree=tSpots.filter(s=>s.status==='free').length;
+
+  const clickSpot=(s)=>{
+    if(s.isLift)return;
+    if(s.status!=='free'&&s.id!==mySpot?.id)return;
+    if(hasTicket)return;
+    setSel(p=>p===s.id?null:s.id);
+  };
+
+  const doPark=()=>{
+    if(!sel||!dur)return;
+    const info={id:sel,lotKey:lot,level:lot==='univ'?uLvl:null};
+    setMySpot(info);
+    if(lot==='univ'){
+      setUSpots(prev=>{const n=[...prev];n[uLvl]=n[uLvl].map(s=>s.id===sel?{...s,status:'mine'}:s);return n;});
+    } else {
+      setTSpots(prev=>prev.map(s=>s.id===sel?{...s,status:'mine'}:s));
+    }
+    setHasTicket(true);setTicketTime(new Date());setElapsed(0);
+    setTab('ticket');toast('✓ SPOT CLAIMED — TICKET ACTIVE');
+  };
+
+  const doExit=()=>{
+    const hrs=elapsed/3600;const rate=4;
+    const base=hrs*rate;
+    const charge=overtime?parseFloat(base.toFixed(2)):parseFloat((base*.65).toFixed(2));
+    setBalance(prev=>Math.max(0,prev-charge));
+    if(mySpot?.lotKey==='univ'){
+      setUSpots(prev=>{const n=[...prev];n[mySpot.level]=n[mySpot.level].map(s=>s.id===mySpot.id?{...s,status:'free'}:s);return n;});
+    } else {
+      setTSpots(prev=>prev.map(s=>s.id===mySpot.id?{...s,status:'free'}:s));
+    }
+    setMySpot(null);setHasTicket(false);setSel(null);setDur(null);setElapsed(0);
+    toast(`✓ EXIT OK — AED ${charge.toFixed(2)} CHARGED`);setTab('map');
+  };
+
+  const doReport=()=>{
+    if(!repSpot.trim())return;
+    setRepStage('verifying');
+    setTimeout(()=>{
+      setRepStage('verified');
+      setBalance(p=>p+1);
+      toast('+1.00 AED REWARD ADDED');
+      setTimeout(()=>{setRepStage('idle');setRepSpot('');},2000);
+    },2800);
+  };
+
+  const doTopUp=()=>{
+    const amt=parseFloat(custAmt||payAmt);
+    if(!amt||isNaN(amt))return;
+    setPaySuc(true);
+    setTimeout(()=>{setBalance(p=>p+amt);setPayModal(null);setPaySuc(false);setCustAmt('');toast(`✓ AED ${amt.toFixed(2)} ADDED`);},1800);
+  };
+
+  const doLink=()=>{
+    setPaySuc(true);
+    setTimeout(()=>{setPayModal(null);setPaySuc(false);toast(`✓ ${PAYMENT_METHODS.find(p=>p.id===payMeth)?.name} LINKED`);},1800);
+  };
+
+  const ticketLabel=mySpot?(mySpot.lotKey==='univ'?`B${mySpot.level+1} — ${mySpot.id}`:`TRAM — ${mySpot.id}`):'—';
+
+  const ROWS='ABCDEFGHIJ';
+
+  const renderUniv=()=>{
+    const rows=[];
+    for(let r=0;r<10;r++){
+      const row=curSpots.filter(s=>s.row===r);
+      rows.push(
+        <div key={r} className="prow">
+          <div className="prow-lbl">{ROWS[r]}</div>
+          {row.slice(0,5).map(s=>{
+            const cls=s.id===mySpot?.id?'mine':s.status;
+            const isSel=sel===s.id;
+            const isRec=s.isRec&&!mySpot&&cls==='free';
+            return(
+              <div key={s.id} className={`pspot ${cls}${isSel?' sel':''}${isRec?' rec':''}`} onClick={()=>clickSpot(s)}>
+                {s.isLift?'▲':s.id===mySpot?.id?'◈':s.id.slice(-2)}
+              </div>
+            );
+          })}
+          <div className="prow-lane"/>
+          {row.slice(5).map(s=>{
+            const cls=s.id===mySpot?.id?'mine':s.status;
+            const isSel=sel===s.id;
+            const isRec=s.isRec&&!mySpot&&cls==='free';
+            return(
+              <div key={s.id} className={`pspot ${cls}${isSel?' sel':''}${isRec?' rec':''}`} onClick={()=>clickSpot(s)}>
+                {s.isLift?'▲':s.id===mySpot?.id?'◈':s.id.slice(-2)}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    return rows;
+  };
+
+  const renderTram=()=>{
+    const cells=[];
+    for(let r=0;r<20;r++){
+      if(r===10){
+        cells.push(<div key="aisle" style={{gridColumn:'1/-1',height:'8px',display:'flex',alignItems:'center'}}>
+          <div style={{width:'100%',height:'2px',background:C.border,opacity:.5,borderRadius:'1px'}}/>
+        </div>);
+      }
+      for(let c=0;c<20;c++){
+        const s=tSpots[r*20+c];
+        const cls=s.id===mySpot?.id?'mine':s.status;
+        const isSel=sel===s.id;
+        const isRec=s.isRec&&!mySpot&&cls==='free';
+        cells.push(<div key={s.id} className={`ts ${cls}${isSel?' sel':''}${isRec?' rec':''}`} onClick={()=>clickSpot(s)} title={s.id}/>);
+      }
+    }
+    return cells;
+  };
+
+  const NAV=[
+    {id:'map',lbl:'MAP',
+      svg:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>},
+    {id:'ticket',lbl:'TICKET',
+      svg:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="10" rx="2"/><line x1="16" y1="7" x2="16" y2="17" strokeDasharray="3 2"/></svg>},
+    {id:'findcar',lbl:'FIND',
+      svg:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>},
+    {id:'report',lbl:'REPORT',
+      svg:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>},
+    {id:'wallet',lbl:'WALLET',
+      svg:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>},
+  ];
+
+  return(
+    <>
+      <style>{G}</style>
+      <div className="app">
+        {notif&&<div className="notif">{notif}</div>}
+
+        {/* TOPBAR */}
+        <div className="topbar">
+          <div className="topbar-row">
+            <div className="logo">GRID<b>LOCK</b></div>
+            <div className="topbar-right">
+              <div className="plate">AUH·K42831</div>
+              <div className="live-dot"/>
+            </div>
+          </div>
+          <div className="topbar-sub">UNIVERSITY SMART PARKING</div>
+        </div>
+
+        <div className="scroll">
+
+          {/* ═══ MAP ═══ */}
+          {tab==='map'&&<>
+            <div className="card">
+              <div className="sec"><div className="sec-dot"/>SELECT LOT</div>
+              <div className="lot-tabs">
+                <div className={`lot-tab${lot==='univ'?' on':''}`} onClick={()=>{setLot('univ');setSel(null);}}>
+                  <div className="lot-tab-name">University</div>
+                  <div className="lot-tab-free">{ufree(0)+ufree(1)+ufree(2)} free · 3 levels</div>
+                </div>
+                <div className={`lot-tab${lot==='tram'?' on':''}`} onClick={()=>{setLot('tram');setSel(null);}}>
+                  <div className="lot-tab-name">Tram Stop</div>
+                  <div className="lot-tab-free">{tfree} free · Open air</div>
+                </div>
+              </div>
+
+              {lot==='univ'&&<>
+                <div className="lot-hdr">
+                  <div>
+                    <div className="lot-title">University Basement</div>
+                    <div className="lot-sub">LPR · Covered · 3 basement levels</div>
+                  </div>
+                  <div>
+                    <div className="lot-count">{ufree(uLvl)}</div>
+                    <div className="lot-count-sub">/ 100 FREE</div>
+                  </div>
+                </div>
+                <div className="lvl-tabs">
+                  {[['B1 — Top Level','001–100'],['B2 — Mid Level','101–200'],['B3 — Bottom','201–300']].map(([lbl,range],i)=>(
+                    <button key={i} className={`lvl-tab${uLvl===i?' on':''}`}
+                      onClick={()=>{setULvl(i);setSel(null);}}>
+                      {lbl} <span style={{opacity:.6,fontSize:8}}>({range})</span> · {ufree(i)}
+                    </button>
+                  ))}
+                </div>
+                <div className="pgrid-wrap">
+                  <div className="pgrid">{renderUniv()}</div>
+                </div>
+              </>}
+
+              {lot==='tram'&&<>
+                <div className="lot-hdr">
+                  <div>
+                    <div className="lot-title">Tram Stop Parking</div>
+                    <div className="lot-sub">Open air · Flat · LPR exit gate</div>
+                  </div>
+                  <div>
+                    <div className="lot-count">{tfree}</div>
+                    <div className="lot-count-sub">/ 400 FREE</div>
+                  </div>
+                </div>
+                <div style={{fontSize:9,color:C.textSub,fontFamily:"'DM Mono',monospace",letterSpacing:1,marginBottom:8}}>
+                  20×20 GRID · T001–T400 · TAP TO SELECT
+                </div>
+                <div className="tram-grid">{renderTram()}</div>
+              </>}
+
+              <div className="grid-legend">
+                {[
+                  {c:'rgba(0,230,118,.18)',b:'rgba(0,230,118,.3)',l:'FREE'},
+                  {c:'rgba(255,98,64,.1)',b:'rgba(255,98,64,.18)',l:'TAKEN'},
+                  {c:'rgba(0,212,255,.2)',b:C.accent,l:'MINE'},
+                  ...(lot==='univ'?[{c:'rgba(255,208,0,.12)',b:'rgba(255,208,0,.25)',l:'LIFT'}]:[]),
+                  {c:'transparent',b:C.success,l:'NEAR LIFT'},
+                ].map(l=>(
+                  <div key={l.l} className="leg">
+                    <div className="leg-sq" style={{background:l.c,border:`1px solid ${l.b}`}}/>
+                    {l.l}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {sel&&!hasTicket&&(
+              <div className="claim-panel">
+                <div className="sec">
+                  <div className="sec-dot" style={{background:C.success,boxShadow:`0 0 6px ${C.success}`}}/>
+                  CLAIM SPOT {sel}
+                  {lot==='univ'&&<span style={{color:C.textSub,marginLeft:6}}>· B{uLvl+1}</span>}
+                </div>
+                <div className="discount-bar">
+                  <div className="discount-pct">35%</div>
+                  <div>
+                    <div className="discount-t1">Early exit discount</div>
+                    <div className="discount-t2">Stay within your stated duration to save</div>
+                  </div>
+                </div>
+                <div className="inp-lbl">INTENDED DURATION</div>
+                <div className="dur-grid">
+                  {['1','2','3','4','6','8','12','24'].map(h=>(
+                    <button key={h} className={`dur-btn${dur===h?' on':''}`} onClick={()=>setDur(h)}>
+                      {h}h<span className="dur-sub">{h==='1'?'1 hour':`${h} hrs`}</span>
+                    </button>
+                  ))}
+                </div>
+                <button className="btn" onClick={doPark} disabled={!dur}>◈ Confirm Parking</button>
+                <button className="btn ghost sm" onClick={()=>setSel(null)}>Cancel</button>
+              </div>
+            )}
+          </>}
+
+          {/* ═══ TICKET ═══ */}
+          {tab==='ticket'&&<>
+            {hasTicket?<>
+              <div className="card">
+                <div className="sec"><div className="sec-dot"/>ACTIVE TICKET</div>
+                <div className="ticket">
+                  <div className="ticket-hdr">
+                    <div>
+                      <div className="ticket-id">{ticketLabel}</div>
+                      <div className="ticket-stat">● LIVE · LPR REGISTERED</div>
+                    </div>
+                    <div className="badge-ok">✓ VALID</div>
+                  </div>
+                  <div className="ticket-body">
+                    {[
+                      {l:'PLATE',v:'AUH · K42831',cls:'a'},
+                      {l:'LOT',v:lot==='univ'?`University — B${(mySpot?.level??0)+1}`:'Tram Stop',cls:''},
+                      {l:'SPOT',v:mySpot?.id??'—',cls:'a'},
+                      {l:'ENTERED',v:ticketTime?.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})??'—',cls:''},
+                      {l:'DURATION',v:`${dur}h`,cls:''},
+                      {l:'STATUS',v:overtime?'⚠ OVERTIME':'✓ ON TIME',cls:overtime?'w':'g'},
+                    ].map(row=>(
+                      <div key={row.l} className="trow">
+                        <div className="tlbl">{row.l}</div>
+                        <div className={`tval ${row.cls}`}>{row.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="qr-wrap">
+                  <QRCanvas value={`GRIDLOCK:${ticketLabel}:${ticketTime?.getTime()??0}`} size={160}/>
+                </div>
+                <div style={{textAlign:'center',fontFamily:"'DM Mono',monospace",fontSize:9,color:C.textDim,letterSpacing:2,marginBottom:4}}>
+                  SCAN AT SECURITY GATE
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="sec">
+                  <div className="sec-dot" style={{background:C.gold,boxShadow:`0 0 6px ${C.gold}`}}/>
+                  ELAPSED TIME
+                </div>
+                <div className="timer">{fmt(elapsed)}</div>
+                {durSec&&<>
+                  <div className="pbar">
+                    <div className="pfill" style={{
+                      width:`${progress}%`,
+                      background:overtime?`linear-gradient(90deg,${C.warn},#FF8A6A)`:`linear-gradient(90deg,${C.success},${C.accent})`
+                    }}/>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',fontFamily:"'DM Mono',monospace",fontSize:9,color:C.textSub}}>
+                    <span>0:00</span>
+                    <span>{overtime?`⚠ +${fmt(elapsed-durSec)} OVER`:`${dur}h LIMIT`}</span>
+                  </div>
+                </>}
+                <div style={{marginTop:12}}>
+                  {overtime
+                    ?<div className="discount-bar" style={{background:'rgba(255,98,64,.08)',borderColor:'rgba(255,98,64,.25)',marginBottom:0}}>
+                      <div className="discount-pct" style={{color:C.warn,fontSize:20}}>!</div>
+                      <div><div className="discount-t1" style={{color:C.warn}}>Discount forfeited</div><div className="discount-t2">Full rate — AED 4/hr</div></div>
+                    </div>
+                    :<div className="discount-bar" style={{marginBottom:0}}>
+                      <div className="discount-pct">35%</div>
+                      <div><div className="discount-t1">Discount active</div><div className="discount-t2">Exit within {dur}h to keep it</div></div>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <button className="btn danger" onClick={doExit}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Exit & Pay — LPR Scan
+              </button>
+            </>:(
+              <div className="card">
+                <div className="empty-state">
+                  <div className="empty-icon">◈</div>
+                  <div className="empty-title">NO ACTIVE TICKET</div>
+                  <div className="empty-sub">Claim a spot from the Map tab</div>
+                  <button className="btn ghost sm" style={{marginTop:20,width:'auto',padding:'10px 28px'}} onClick={()=>setTab('map')}>Go to Map →</button>
+                </div>
+              </div>
+            )}
+          </>}
+
+          {/* ═══ FIND CAR ═══ */}
+          {tab==='findcar'&&<>
+            <div className="card">
+              <div className="sec"><div className="sec-dot"/>FIND MY VEHICLE</div>
+              <div className="fcmap">
+                <div className="fcmap-grid"/>
+                {[{l:'8%',t:'8%',w:'22%',h:'18%'},{l:'40%',t:'5%',w:'28%',h:'22%'},{l:'72%',t:'38%',w:'20%',h:'28%'},{l:'5%',t:'55%',w:'32%',h:'28%'},{l:'48%',t:'62%',w:'24%',h:'22%'}].map((b,i)=>(
+                  <div key={i} className="fc-bld" style={{left:b.l,top:b.t,width:b.w,height:b.h}}/>
+                ))}
+                {mySpot?<>
+                  <div className="fc-car" style={{left:'58%',top:'38%'}}>🚗</div>
+                  <div className="fc-label" style={{left:'62%',top:'22%',color:C.accent}}>{mySpot.id}</div>
+                  <div className="fc-me" style={{left:'22%',top:'72%'}}/>
+                  <div className="fc-label" style={{left:'26%',top:'76%',color:C.warn}}>YOU</div>
+                  <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}} viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <path d="M22,72 L32,56 L44,48 L58,38" stroke={C.accent} strokeWidth=".6" fill="none" strokeDasharray="2,2" opacity=".5"/>
+                  </svg>
+                  <div style={{position:'absolute',bottom:8,left:'50%',transform:'translateX(-50%)',background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 12px',fontFamily:"'DM Mono',monospace",fontSize:9,color:C.accent,letterSpacing:1,whiteSpace:'nowrap'}}>
+                    ~3 MIN · 180M · {lot==='univ'?`B${(mySpot?.level??0)+1}`:'TRAM LOT'}
+                  </div>
+                </>:(
+                  <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:8}}>
+                    <div style={{fontSize:28,opacity:.15}}>◎</div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:C.textDim,letterSpacing:2}}>NO VEHICLE PARKED</div>
+                  </div>
+                )}
+              </div>
+              {mySpot?<>
+                <div className="tiles">
+                  <div className="tile"><div className="tile-lbl">SPOT</div><div className="tile-val a">{mySpot.id}</div></div>
+                  <div className="tile"><div className="tile-lbl">LEVEL</div><div className="tile-val">{lot==='univ'?`B${(mySpot.level??0)+1}`:'GND'}</div></div>
+                  <div className="tile"><div className="tile-lbl">WALK</div><div className="tile-val">180m</div></div>
+                </div>
+                <button className="btn" style={{marginTop:12}} onClick={()=>toast('↗ WAZE NAVIGATION STARTED')}>↗ Navigate in Waze</button>
+                <button className="btn ghost sm" onClick={()=>toast('↗ GOOGLE MAPS OPENED')}>Open in Google Maps</button>
+              </>:(
+                <div style={{textAlign:'center',fontFamily:"'DM Mono',monospace",fontSize:11,color:C.textDim,padding:'8px 0'}}>Park first to use Find My Car</div>
+              )}
+            </div>
+          </>}
+
+          {/* ═══ REPORT ═══ */}
+          {tab==='report'&&<>
+            <div className="card">
+              <div className="sec"><div className="sec-dot" style={{background:C.warn,boxShadow:`0 0 6px ${C.warn}`}}/>REPORT MISUSE</div>
+              <div style={{fontSize:12,color:C.textSub,lineHeight:1.7,marginBottom:14}}>
+                Found an empty spot wrongly claimed? Report it with photo evidence. The offender loses their discount and you earn <span style={{color:C.gold,fontFamily:"'DM Mono',monospace"}}>+1.00 AED</span>.
+              </div>
+              <div className="inp-lbl">SPOT NUMBER (e.g. 042, T156)</div>
+              <input className="inp" placeholder="Enter spot ID" value={repSpot}
+                onChange={e=>setRepSpot(e.target.value.toUpperCase())}
+                disabled={repStage!=='idle'}/>
+              {repStage==='idle'&&(
+                <div className="cam" onClick={doReport} style={{opacity:repSpot.trim()?1:.4}}>
+                  <div className="cam-c tl"/><div className="cam-c tr"/><div className="cam-c bl"/><div className="cam-c br"/>
+                  <div className="cam-scan"/>
+                  <div style={{textAlign:'center',pointerEvents:'none'}}>
+                    <div style={{fontSize:28,opacity:.3}}>📷</div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:C.textSub,marginTop:6,letterSpacing:1}}>TAP TO CAPTURE</div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:C.textDim,marginTop:3}}>SPOT NUMBER MUST BE FULLY VISIBLE</div>
+                  </div>
+                </div>
+              )}
+              {repStage==='verifying'&&<div className="vstatus ing"><span className="spin">⟳</span> CV VERIFYING SPOT {repSpot}…</div>}
+              {repStage==='verified'&&<div className="vstatus ok">✓ VERIFIED · PENALTY APPLIED · +1.00 AED CREDITED</div>}
+            </div>
+            <div className="card">
+              <div className="sec"><div className="sec-dot"/>PENALTY RULES</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                {[
+                  {icon:'◈',title:'FALSE CLAIM',desc:'Offender loses 35% discount + flag',color:C.warn},
+                  {icon:'◇',title:'REPORTER REWARD',desc:'+1.00 AED added to wallet instantly',color:C.gold},
+                  {icon:'◎',title:'CV VERIFICATION',desc:'Spot number must be clearly visible',color:C.accent},
+                  {icon:'⬡',title:'LPR MATCH',desc:'System auto-IDs the offending plate',color:C.success},
+                ].map(item=>(
+                  <div key={item.title} style={{padding:12,background:C.surfaceHigh,border:`1px solid ${C.border}`,borderRadius:10}}>
+                    <div style={{fontSize:18,color:item.color,marginBottom:5}}>{item.icon}</div>
+                    <div style={{fontSize:11,fontWeight:700,color:item.color,letterSpacing:.5,marginBottom:4}}>{item.title}</div>
+                    <div style={{fontSize:10,color:C.textSub,lineHeight:1.5}}>{item.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>}
+
+          {/* ═══ WALLET ═══ */}
+          {tab==='wallet'&&<>
+            <div className="card">
+              <div className="sec"><div className="sec-dot"/>BALANCE</div>
+              <div className="wbal">
+                <div className="wbal-lbl">AVAILABLE</div>
+                <div className="wbal-amt"><span className="wbal-cur">AED</span>{balance.toFixed(2)}</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:C.textSub,marginTop:6,letterSpacing:1}}>LINKED · AUH·K42831</div>
+              </div>
+              <button className="btn" onClick={()=>{setPayModal('topup');setPaySuc(false);}}>+ Top Up Balance</button>
+              <button className="btn ghost sm" onClick={()=>{setPayModal('link');setPaySuc(false);}}>↗ Link Payment Method</button>
+            </div>
+
+            <div className="card">
+              <div className="sec"><div className="sec-dot"/>LINKED METHODS</div>
+              {[{icon:'',name:'Apple Pay',stat:'DEFAULT'},{icon:'💳',name:'Visa ···· 4821',stat:'SAVED'}].map(m=>(
+                <div key={m.name} className="trow">
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <div style={{fontSize:22,width:28,textAlign:'center'}}>{m.icon}</div>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:600}}>{m.name}</div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:C.success,letterSpacing:1,marginTop:2}}>{m.stat}</div>
+                    </div>
+                  </div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,color:C.textSub,letterSpacing:1}}>✓ ACTIVE</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="card">
+              <div className="sec"><div className="sec-dot"/>RECENT TRANSACTIONS</div>
+              {[
+                {id:'TXN-0044',label:'University B1 — 042',time:'Today 09:14',amt:'-6.75',disc:true},
+                {id:'RPT-0019',label:'Report reward',time:'Today 08:50',amt:'+1.00',disc:false},
+                {id:'TOP-0010',label:'Top-up · Apple Pay',time:'Yesterday',amt:'+50.00',disc:false},
+                {id:'TXN-0041',label:'Tram Stop — T193',time:'Feb 24',amt:'-12.50',disc:false},
+                {id:'TXN-0038',label:'University B2 — 156',time:'Feb 22',amt:'-4.55',disc:true},
+              ].map(t=>(
+                <div key={t.id} className="trow">
+                  <div>
+                    <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:C.text}}>{t.id}</div>
+                    <div style={{fontSize:11,color:C.textSub,marginTop:2}}>{t.label} · {t.time}</div>
+                    {t.disc&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:C.success,marginTop:2,letterSpacing:1}}>35% DISCOUNT</div>}
+                  </div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,fontWeight:500,color:t.amt.startsWith('+')?C.success:C.text}}>{t.amt}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="card">
+              <div className="sec"><div className="sec-dot"/>VEHICLE</div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:15,fontWeight:500,letterSpacing:3,color:C.text,marginBottom:5}}>AUH · K42831</div>
+                  <div style={{fontSize:12,color:C.textSub}}>Toyota Camry · Silver · LPR Active</div>
+                </div>
+                <div className="badge-ok">✓ LPR</div>
+              </div>
+              <div className="sep"/>
+              <button className="btn ghost sm" onClick={()=>toast('VEHICLE MANAGEMENT — COMING SOON')}>+ Add Vehicle</button>
+            </div>
+          </>}
+
+        </div>{/* end scroll */}
+
+        {/* BOTTOM NAV */}
+        <div className="bottomnav">
+          {NAV.map(n=>(
+            <button key={n.id} className={`nb${tab===n.id?' on':''}`} onClick={()=>setTab(n.id)}>
+              {n.svg}{n.lbl}
+            </button>
+          ))}
+        </div>
+
+        {/* ═══ PAYMENT MODAL ═══ */}
+        {payModal&&(
+          <div className="modal-bg" onClick={e=>{if(e.target===e.currentTarget)setPayModal(null);}}>
+            <div className="modal">
+              <div className="modal-pill"/>
+              {paySuc?(
+                <div className="success-anim">
+                  <div className="success-icon">✅</div>
+                  <div className="success-title">{payModal==='topup'?'Balance Added!':'Method Linked!'}</div>
+                  <div className="success-sub">{payModal==='topup'?`AED ${parseFloat(custAmt||payAmt).toFixed(2)} added to your wallet`:`${PAYMENT_METHODS.find(p=>p.id===payMeth)?.name} linked successfully`}</div>
+                </div>
+              ):payModal==='topup'?<>
+                <div className="modal-title">Top Up Balance</div>
+                <div className="modal-sub">Add funds to your Gridlock wallet</div>
+                <div className="inp-lbl">AMOUNT (AED)</div>
+                <div className="amt-grid">
+                  {TOP_UP_AMOUNTS.map(a=>(
+                    <button key={a} className={`amt-btn${!custAmt&&payAmt===a?' on':''}`}
+                      onClick={()=>{setPayAmt(a);setCustAmt('');}}>
+                      {a}
+                    </button>
+                  ))}
+                </div>
+                <input className="inp" placeholder="Custom amount" type="number" value={custAmt}
+                  onChange={e=>{setCustAmt(e.target.value);setPayAmt('');}}
+                  style={{marginBottom:16}}/>
+                <div className="inp-lbl">PAY WITH</div>
+                <div className="pay-methods">
+                  {PAYMENT_METHODS.map(pm=>(
+                    <div key={pm.id} className={`pay-method${payMeth===pm.id?' on':''}`} onClick={()=>setPayMeth(pm.id)}>
+                      <div className="pay-icon">{pm.icon}</div>
+                      <div style={{flex:1}}>
+                        <div className="pay-name">{pm.name}</div>
+                        <div className="pay-desc">{pm.desc}</div>
+                      </div>
+                      <div className="pay-check">{payMeth===pm.id?'✓':''}</div>
+                    </div>
+                  ))}
+                </div>
+                <button className="btn" onClick={doTopUp} disabled={!parseFloat(custAmt||payAmt)}>
+                  Add AED {parseFloat(custAmt||payAmt||0).toFixed(2)}
+                </button>
+                <button className="btn ghost sm" onClick={()=>setPayModal(null)}>Cancel</button>
+              </>:<>
+                <div className="modal-title">Link Payment</div>
+                <div className="modal-sub">Choose a payment method for your Gridlock account</div>
+                <div className="pay-methods">
+                  {PAYMENT_METHODS.map(pm=>(
+                    <div key={pm.id} className={`pay-method${payMeth===pm.id?' on':''}`} onClick={()=>setPayMeth(pm.id)}>
+                      <div className="pay-icon">{pm.icon}</div>
+                      <div style={{flex:1}}>
+                        <div className="pay-name">{pm.name}</div>
+                        <div className="pay-desc">{pm.desc}</div>
+                      </div>
+                      <div className="pay-check">{payMeth===pm.id?'✓':''}</div>
+                    </div>
+                  ))}
+                </div>
+                <button className="btn" onClick={doLink}>
+                  Link {PAYMENT_METHODS.find(p=>p.id===payMeth)?.name}
+                </button>
+                <button className="btn ghost sm" onClick={()=>setPayModal(null)}>Cancel</button>
+              </>}
+            </div>
+          </div>
+        )}
+
+      </div>
+    </>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(Gridlock));
+  </script>
+</body>
+</html>
