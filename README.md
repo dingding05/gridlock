@@ -1,9 +1,9 @@
 # Gridlock - Android APK Builder
 
-## How to get your APK in 5 minutes (free):
+## How to get APK:
 
 ### Step 1 - Create GitHub repo
-1. Go to https://github.com and sign in (or create free account)
+1. Go to https://github.com and sign in
 2. Click the + button > New repository
 3. Name it "gridlock", set to Public, click Create
 
